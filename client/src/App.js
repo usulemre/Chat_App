@@ -1,7 +1,7 @@
-import React,{useEffect,useRef,useState} from 'react';
-import styled from 'styled-components';
-import {io} from 'socket.io-client';
-
+import React, { useState, useEffect, useRef } from "react";
+import styled from "styled-components";
+import io from "socket.io-client";
+import Image from './Image';
 const Page = styled.div`
   display: flex;
   height: 100vh;
@@ -91,70 +91,106 @@ const PartnerMessage = styled.div`
   border-bottom-left-radius: 10%;
 `;
 
-const App = () =>{
-  const [yourID,setYourID] = useState();
-  const [messages,setMessages] = useState([]);
-  const [message,setMessage] = useState('');
+const App = () => {
+  const [yourID, setYourID] = useState();
+  const [messages, setMessages] = useState([]);
+  const [message, setMessage] = useState("");
+  const [file, setFile] = useState();
 
   const socketRef = useRef();
 
-  useEffect(() =>{
-    socketRef.current = io.connect('/');
-    socketRef.current.on('your id', id => {
-      setYourID(id);
-    })
-    socketRef.current.on('message', (message) =>{
-      receivedMessage(message);
-    })
-  },[]);
+  useEffect(() => {
+    socketRef.current = io.connect("/");
 
-  function receivedMessage(message){
-    setMessages(oldMsgs => [...oldMsgs,message])
+    socketRef.current.on("your id", (id) => {
+      setYourID(id);
+    });
+
+    socketRef.current.on("message", (message) => {
+      console.log("here");
+      receivedMessage(message);
+    });
+  }, []);
+
+  function receivedMessage(message) {
+    setMessages((oldMsgs) => [...oldMsgs, message]);
   }
 
-  function sendMessage(e){
+  function sendMessage(e) {
     e.preventDefault();
-    const messageObject = {
-      body:message,
-      id:yourID,
-    };
-    setMessage("");
-    socketRef.current.emit('send meassage', messageObject);
+    if (file) {
+      const messageObject = {
+        id: yourID,
+        type: "file",
+        body: file,
+        mimeType: file.type,
+        fileName: file.name,
+      };
+      setMessage("");
+      setFile("");
+      socketRef.current.emit("send message", messageObject);
+    } else {
+      const messageObject = {
+        body: message,
+        type: "text",
+        id: yourID,
+      };
+      setMessage("");
+      socketRef.current.emit("send message", messageObject);
+    }
   }
 
   function handleChange(e) {
-    setMessages(e.target.value);
+    setMessage(e.target.value);
   }
 
-  return(
+  function selectFile(e) {
+    setMessage(e.target.files[0].name);
+    setFile(e.target.files[0]);
+  }
+
+  function renderMessage(message, index) {
+    if(message.type === "file"){
+      const blob = new Blob([message.body], {type:message.type});
+      if(message.type === yourID){
+        return(
+        <MyRow key={index}>
+          <Image fileName={message.fileName} blob={blob} />
+        </MyRow>
+        )
+      }
+      return(
+        <PartnerRow key={index}>
+          <Image fileName={message.fileName} blob={blob} />
+        </PartnerRow>
+      )
+    }
+    if (message.type === yourID) {
+      return (
+        <MyRow key={index}>
+          <MyMessage>{message.body}</MyMessage>
+        </MyRow>
+      );
+    }
+    return (
+      <PartnerRow key={index}>
+        <PartnerMessage>{message.body}</PartnerMessage>
+      </PartnerRow>
+    );
+  }
+
+  return (
     <Page>
-      <Container>
-        {messages.map((message,index) =>{
-          if( message.id === yourID ){
-            return(
-              <MyRow key={index}>
-                <MyMessage>
-                  {message.body}
-                </MyMessage>
-              </MyRow>
-            )
-          }
-          return(
-            <PartnerRow key={index}>
-              <PartnerMessage>
-                {message.body}
-              </PartnerMessage>
-            </PartnerRow>
-          )
-        })}
-      </Container>
-      <Form>
-        <TextArea 
-        value={message}
-        onChange={handleChange}
-        placeholder="İleti"/>
+      <Container>{messages.map(renderMessage)}</Container>
+      <Form onSubmit={sendMessage}>
+        <TextArea
+          value={message}
+          onChange={handleChange}
+          placeholder="Say something..."
+        />
+        <input onChange={selectFile} type="file" />
+        <Button>Send</Button>
       </Form>
-      <Button>Gönder</Button>
     </Page>
   );
 };

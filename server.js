@@ -7,9 +7,10 @@ const io = socket(server);
 
 io.on("connection", socket => {
     socket.emit("your id", socket.id);
-    socket.on("send meassage", body =>{
+    socket.on("send message", body => {
         io.emit("message", body)
     })
 })
 
-server.listen(8000,() => console.log("server is 8000"));
+
+server.listen(8000, () => console.log("server is running on port 8000"));
